@@ -1,0 +1,26 @@
+# mnemonic      op1             op2             op3     ret
+prolog          1
+arg_ui                                                  => $in
+getarg_ui       %v0             $in                                   # V0 = n
+blti_ui         !forward        %v0             2       => @ref
+subi_ui         %v1             %v0             1                     # V1 = n - 1
+subi_ui         %v2             %v0             2                     # V2 = n - 2
+prepare_i       1                                                     # Prepare for a call with one argument
+pusharg_ui      %v1                                                   # Push the argument
+finish          @self         # The self-pointer is a pointer to the
+                              # beginning of the code block (entry point).
+                              # This instruction jumps to the beginning of the
+                              # code, causing recursion
+
+retval_i        %v1                                   # Store the result in V1
+prepare_i       1                                     # Another
+pusharg_ui      %v2                                   # recursive
+finish          @self                                 # call
+retval_i        %v2                                   # Store the result in V2
+addi_ui         %v1             %v1             1     # V1++
+addr_ui         %ret            %v1             %v2   # RET = V1 + V2
+ret                                                   # Return
+
+patch           @ref                                  # Patch jump
+movi_i          %ret            1                     # RET = 1
+ret                                                   # Return

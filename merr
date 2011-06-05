@@ -1,0 +1,44 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings FATAL => 'all';
+use utf8;
+
+use IPC::Open2;
+
+my $snippets = require "snippets.pm";
+
+my $messages;
+for my $snip (@$snippets) {
+   for (@{ ref $snip->{code} eq "ARRAY" ? $snip->{code} : $snip->{code}->() }) {
+      print "$_\n";
+
+      my $out;
+      my $pid = do {
+         my $pid = open2 $out, my $in, './rasm';
+         print $in "#function start\n\n$_\n";
+         $pid
+      };
+      waitpid $pid, 0;
+      my $output = do { local $/; <$out> };
+      if (my ($state, $char) = $output =~ /\((\d+);(\d+)\)$/) {
+         $messages->{$state}->{$char} = $snip->{msg}
+      } else {
+         die 'Error message malformed'
+      }
+      print "  $output";
+   }
+}
+
+my @messages;
+for my $state (keys %$messages) {
+   for my $char (keys %{ $messages->{$state} }) {
+      push @messages, "  errtab[$state] (\"$messages->{$state}->{$char}\", $char);"
+   }
+}
+
+open my $fh, '>', 'src/assembler/yymsg.h';
+my $prev = 'nonesuch';
+for (grep { $_ ne $prev and $prev = $_ } sort @messages) {
+   print $fh "$_\n";
+}

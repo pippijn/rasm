@@ -1,0 +1,5 @@
+# mnemonic      op1             op2             op3     ret
+leaf            0
+allocai         0xfffffff                                  => $a
+movi_i          %ret            $a
+ret

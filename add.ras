@@ -1,0 +1,14 @@
+# mnemonic      op1             op2             op3             ret
+prolog          2
+arg_i                                                           => $ofs
+getarg_i        %v0,            $ofs
+arg_i                                                           => $ofs
+getarg_i        %v1,            $ofs
+
+blti_i          !forward,       %v0,            2               => @ref
+
+addr_i          %ret,           %v0,            %v1
+ret
+
+patch           @ref
+ret
