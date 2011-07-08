@@ -15,7 +15,8 @@ is a working parser and assembler for things like this:
   blt           !forward        %v0             2       => @ref
   sub           %v1             %v0             1                     # V1 = n - 1
   sub           %v2             %v0             2                     # V2 = n - 2
-  prepare       1                                                     # Prepare for a call with one argument
+  prepare       1                                                     # Prepare for a call with
+                                                                      # one argument
   pusharg       %v1                                                   # Push the argument
   finish        @self         # The self-pointer is a pointer to the
                               # beginning of the code block (entry point).
