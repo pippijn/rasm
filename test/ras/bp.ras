@@ -1,0 +1,31 @@
+# mnemonic      op1             op2             op3     ret
+prolog          1
+arg_ui                                                  => $in
+getarg_ui       %v0             $in
+movi_p          %v2             !forward                => @mref
+jmpr            %v2
+addi_ui         %v0             %v0             1
+addi_ui         %v0             %v0             1
+addi_ui         %v0             %v0             1
+addi_ui         %v0             %v0             1
+get_label                                               => @tp
+blti_ui         !forward        %v0             2       => @ref
+subi_ui         %v1             %v0             1
+subi_ui         %v2             %v0             2
+prepare_i       1
+pusharg_ui      %v1
+finish          @self
+retval_i        %v1
+prepare_i       1
+pusharg_ui      %v2
+finish          @self
+retval_i        %v2
+addi_ui         %v1             %v1             1
+addr_ui         %ret            %v1             %v2
+ret
+
+patch           @ref
+movi_i          %ret            1
+ret
+
+patch_movi      @mref           @tp

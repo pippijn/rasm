@@ -1,0 +1,115 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings FATAL => 'all';
+use utf8;
+
+use Cwd;
+use FindBin '$Bin';
+use Storable 'dclone';
+
+my @types = (
+   'iv',
+   'ii',
+
+   'rr',
+
+   'lv',
+   'll',
+
+   'lr',
+   'lrr',
+   'lrrr',
+
+   'llri',
+
+   'lrl',
+
+   'vv',
+
+   'vrl',
+
+   'vr',
+   'vrr',
+   'vrrr',
+
+   'vl',
+   'vll',
+   'vlll',
+
+   'vi',
+   'vri',
+   'vrri',
+);
+
+sub gentypes {
+   my %types = (
+      v => 'void',
+      i => 'jit::imm32',
+      l => 'jit::insn *',
+      r => 'jit::reg32',
+   );
+   
+   my $retval = <<C;
+// AC:   Argument count
+// R:    Whether or not this instruction returns
+// RT:   Return type of the instruction
+// T:    The function signature, mangled
+// args: Any number of arguments passed to the instruction
+//     AC     R           RT      T  args...
+C
+   for my $type (@_) {
+      my $sig = $type;
+      my $rtype = $types{substr $type, 0, 1, ''};
+      my $returns = $rtype ne "void" ? "true" : "false";
+      my @args = map { $types{$_} } split //, $type;
+      
+      if ($args[0] eq "void") {
+         $retval .= sprintf "TYPE0 (0, %5s, %11s, %5s)\n", $returns, $rtype, $sig;
+      } else {
+         $retval .= sprintf "TYPE  (%d, %5s, %11s, %5s, %s)\n", scalar @args, $returns, $rtype, $sig, join ", ", @args;
+      }
+   }
+
+   $retval
+}
+
+sub genswitch {
+   my %types = (
+      v => '',
+      i => 'imm',
+      l => 'ins',
+      r => 'reg',
+   );
+   my %lhs = (
+      v => '',
+      i => 'curfunc->locals[insn.ret.string ()] = ',
+      l => 'curfunc->locals[insn.ret.string ()] = ',
+      r => '',
+   );
+
+   my $retval = <<C;
+  switch (f.type)
+    {
+C
+   for my $type (@_) {
+      my $sig = $type;
+      my $lhs = $lhs{substr $type, 0, 1, ''};
+      my $i = 0;
+      my @args = $type ne 'v' ? map { $i++; "op$i.$types{$_} (insn)" } split //, $type : ();
+      unshift @args, '*this';
+
+      $" = ", ";
+      $retval .= <<C;
+    case functor::ftype::$sig:
+      ${lhs}f.u.$sig (@args);
+      return;
+C
+   }
+   <<C
+$retval    }
+C
+}
+
+do { open my $fh, ">", "$Bin/types.h"       or die "Could not open types.h: $!";       print $fh gentypes  @{ dclone (\@types) } };
+do { open my $fh, ">", "$Bin/type_switch.h" or die "Could not open type_switch.h: $!"; print $fh genswitch @{ dclone (\@types) } };

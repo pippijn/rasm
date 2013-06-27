@@ -1,0 +1,13 @@
+#function start
+
+leaf 2
+calli =ret2048
+retval_i %ret
+ret
+
+#function ret2048
+
+leaf 2
+=ret2048 => $hi
+movi_i %ret, $hi
+ret

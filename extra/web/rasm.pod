@@ -1,0 +1,119 @@
+=head1 Runtime assembler
+
+L<Git repository|http://xinutec.org/git/lang/rasm.git/>
+
+This is a portable C++ runtime assembler backed by GNU Lightning. It currently
+has four CPU backends: x86, x86_64, PowerPC and Sparc. What I have right now
+is a working parser and assembler for things like this:
+
+=begin code Rasm
+
+  # mnemonic    op1             op2             op3     ret
+  prolog        1
+  arg                                                   => $in
+  getarg        %v0             $in                                   # V0 = n
+  blt           !forward        %v0             2       => @ref
+  sub           %v1             %v0             1                     # V1 = n - 1
+  sub           %v2             %v0             2                     # V2 = n - 2
+  prepare       1                                                     # Prepare for a call with
+                                                                      # one argument
+  pusharg       %v1                                                   # Push the argument
+  finish        @self         # The self-pointer is a pointer to the
+                              # beginning of the code block (entry point).
+                              # This instruction jumps to the beginning of the
+                              # code, causing recursion
+
+  retval        %v1                                   # Store the result in V1
+  prepare       1                                     # Another
+  pusharg       %v2                                   # recursive
+  finish        @self                                 # call
+  retval        %v2                                   # Store the result in V2
+  add           %v1             %v1             1     # V1++
+  add           %ret            %v1             %v2   # RET = V1 + V2
+  ret                                                 # Return
+  
+  patch         @ref                                  # Patch jump
+  mov           %ret            1                     # RET = 1
+  ret                                                 # Return
+
+=end code Rasm
+
+This example is a function that takes one integer argument C<N> and calculates
+the C<N>-th Fibonacci number.
+
+=head2 Type checking
+
+It has a limited form of type checking. Basically just whether you are passing
+C<imm>, C<reg> or C<insn>. I do not yet have differently sized types.
+Everything that is an immediate is passed as C<int32_t>. This might cause
+breakage on 64 bit platforms but I don't know how to do the differently sized
+types, yet.
+
+=head2 Implementation
+
+For each mnemonic, the assembler uses a C++ member function. The system
+provides a dynamic dispatching mechanism which allows any type of member
+function to be called from the assembly code.
+
+=head2 Byte-code
+
+The software can also store the parsed assembly code in a platform independent
+bytecode format. Numbers are stored in Big Endian byte order. The parser does
+not check whether the instruction exists. It just assumes it does. Only when
+the code is actually assembled into machine code or stored to bytecode, these
+checks are performed. The bytecode is very simple. Each instruction consists
+of a 4-byte header, 0, 1, 2 or 3 argument blocks and an optional return value
+block. The header looks like this:
+
+  Bytes         Content
+  1             Whether or not the instruction returns a value
+  1             Argument count (0, 1, 2 or 3)
+  2             Opcode
+
+Each argument block starts with a 1-byte type-code which may be one of C<var>,
+C<label>, C<call>, C<reg_r>, C<reg_v>, C<reg_fp>, C<reg_ret>, C<imm>. After
+that, it depends on whether the operand is a string or an integer. String
+operands are currently only C<var>, C<label> and C<call>. Strings are stored
+with a 2-byte length indicator and then the string content. Integers are stored
+as 4-byte blocks. The optional return block is just a string with its 2-byte
+length. It refers to the variable or label name in which the return value is
+stored.
+
+The type-codes have the following meaning:
+
+=over
+
+=item var
+
+A variable holding an integer (immediate value).
+
+=item label
+
+A variable holding either an instruction pointer for local jumps or a pointer
+to a function or other location for non-local jumps.
+
+=item call
+
+These are no real function calls. C<call>-type operands are the C<!forward>
+kind of operands. They are called at assembly-time and must return a value.
+
+=item reg_r
+
+=item reg_v
+
+These are general-purpose registers client code can store values in. They are
+not destroyed by the CPU.
+
+=item reg_fp
+
+General purpose floating point registers.
+
+=item reg_ret
+
+Special return-value register. On x86, this is C<EAX>.
+
+=item imm
+
+An immediate (integer) value.
+
+=back

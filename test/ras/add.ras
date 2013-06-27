@@ -1,0 +1,14 @@
+# mnemonic      op1     op2     op3     ret
+leaf            2       2 9223372036854775807
+leaf            2       2 -9223372036854775808
+leaf            3.292
+leaf            3.292
+leaf            3.292
+addr_i          %ret    %r0     %r1 %fpr5
+addr_i          %ret    %r0     %r1
+addr_i          %ret    %r0     %r1
+addr_i          %ret    %r0     %r1
+addr_i          %ret    %r0     %r1
+addr_i          %ret    %r0     %r1
+ret
+#include foo.ras
